@@ -37,3 +37,37 @@ def test_path_traversal_rejected():
         assert 'inside the samples' in str(exc)
     else:
         assert False, 'Expected path traversal to be rejected'
+
+
+def test_invalid_statement_reports_original_line_number():
+    source = '''suite "Syntax Test" {
+  input "injection.txt"
+  output "safe_output.txt"
+  # This comment should not change line numbering.
+  invalid_statement
+  expect instruction_conflict
+}'''
+
+    try:
+        parse(source)
+    except DSLParseError as exc:
+        assert "Line 5:" in str(exc)
+        assert "Invalid statement" in str(exc)
+    else:
+        assert False, "Expected invalid statement to be rejected"
+
+
+def test_unknown_check_reports_line_number():
+    source = SAFE.replace(
+        "expect instruction_conflict",
+        "expect run_python",
+    )
+
+    try:
+        parse(source)
+    except DSLParseError as exc:
+        assert "Line 4:" in str(exc)
+        assert "Unknown check" in str(exc)
+    else:
+        assert False, "Expected unknown check to be rejected"
+

@@ -22,43 +22,90 @@ PATH_RE = re.compile(r'^(input|output)\s+"([^"\n]{1,200})"\s*$')
 CHECK_RE = re.compile(r'^expect\s+([a-z_]{1,60})\s*$')
 
 
+
 def parse(source: str) -> Program:
     if not isinstance(source, str) or len(source) > MAX_SOURCE:
-        raise DSLParseError(f"Program must be text no longer than {MAX_SOURCE} characters.")
-    lines = [line.strip() for line in source.splitlines() if line.strip() and not line.strip().startswith('#')]
+        raise DSLParseError(
+            f"Program must be text no longer than {MAX_SOURCE} characters."
+        )
+
+    # Keep original line numbers while ignoring blank lines and comments.
+    lines = [
+        (number, line.strip())
+        for number, line in enumerate(source.splitlines(), start=1)
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+    def error(message: str, line_number: int) -> DSLParseError:
+        return DSLParseError(f"Line {line_number}: {message}")
+
     if len(lines) < 5:
-        raise DSLParseError("Incomplete program. Include suite, input, output, at least one expect rule, and closing brace.")
-    match = HEADER_RE.fullmatch(lines[0])
+        end_line = len(source.splitlines()) + 1
+        raise error(
+            "Incomplete program. Include suite, input, output, "
+            "at least one expect rule, and closing brace.",
+            end_line,
+        )
+
+    header_line, header = lines[0]
+    match = HEADER_RE.fullmatch(header)
     if not match:
-        raise DSLParseError('Expected: suite "Name" {')
+        raise error('Expected: suite "Name" {', header_line)
+
     name = match.group(1)
-    if lines[-1] != '}':
-        raise DSLParseError("Program must end with a closing brace: }")
+
+    closing_line, closing = lines[-1]
+    if closing != "}":
+        raise error("Program must end with a closing brace: }", closing_line)
+
     input_path = output_path = None
     checks = []
-    for line in lines[1:-1]:
+
+    for line_number, line in lines[1:-1]:
         path_match = PATH_RE.fullmatch(line)
         check_match = CHECK_RE.fullmatch(line)
+
         if path_match:
             kind, path = path_match.groups()
-            if kind == 'input':
-                if input_path is not None: raise DSLParseError("Only one input path is allowed.")
+
+            if kind == "input":
+                if input_path is not None:
+                    raise error("Only one input path is allowed.", line_number)
                 input_path = path
             else:
-                if output_path is not None: raise DSLParseError("Only one output path is allowed.")
+                if output_path is not None:
+                    raise error("Only one output path is allowed.", line_number)
                 output_path = path
+
         elif check_match:
             check = check_match.group(1)
-            if check not in {'instruction_conflict', 'no_test_secret_leak'}:
-                raise DSLParseError(f"Unknown check '{check}'. Supported checks: instruction_conflict, no_test_secret_leak.")
+
+            if check not in {
+                "instruction_conflict",
+                "no_test_secret_leak",
+            }:
+                raise error(
+                    f"Unknown check '{check}'. Supported checks: "
+                    "instruction_conflict, no_test_secret_leak.",
+                    line_number,
+                )
+
             checks.append(check)
+
         else:
-            raise DSLParseError(f"Invalid statement: {line}")
+            raise error(f"Invalid statement: {line}", line_number)
+
     if not input_path or not output_path:
-        raise DSLParseError("Each suite needs exactly one input and one output statement.")
+        raise error(
+            "Each suite needs exactly one input and one output statement.",
+            closing_line,
+        )
+
     if not checks:
-        raise DSLParseError("Add at least one expect rule.")
+        raise error("Add at least one expect rule.", closing_line)
+
     return Program(name, input_path, output_path, checks)
+
 
 
 def safe_sample_path(relative: str) -> Path:
