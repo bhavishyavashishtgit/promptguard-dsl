@@ -71,3 +71,49 @@ def test_unknown_check_reports_line_number():
     else:
         assert False, "Expected unknown check to be rejected"
 
+
+def test_safe_report_contains_structured_evidence():
+    report = run(SAFE)
+
+    assert report["report_version"] == "1.0"
+    assert report["status"] == "PASS"
+    assert report["summary"] == {
+        "total_checks": 2,
+        "passed": 2,
+        "failed": 0,
+    }
+
+    for check in report["checks"]:
+        assert "evidence" in check
+        assert check["evidence"]["method"]
+        assert check["evidence"]["fixture"] == "safe_output.txt"
+        assert isinstance(check["evidence"]["markers_found"], list)
+        assert check["limitation"]
+
+
+def test_unsafe_report_identifies_matching_markers():
+    report = run(UNSAFE)
+
+    assert report["status"] == "FAIL"
+    assert report["summary"] == {
+        "total_checks": 2,
+        "passed": 0,
+        "failed": 2,
+    }
+
+    for check in report["checks"]:
+        assert check["status"] == "FAIL"
+        assert check["evidence"]["markers_found"]
+
+
+def test_report_summary_matches_check_results():
+    report = run(SAFE)
+    checks = report["checks"]
+
+    assert report["summary"]["total_checks"] == len(checks)
+    assert report["summary"]["passed"] == sum(
+        check["status"] == "PASS" for check in checks
+    )
+    assert report["summary"]["failed"] == sum(
+        check["status"] == "FAIL" for check in checks
+    )

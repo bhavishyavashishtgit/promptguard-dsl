@@ -31,6 +31,24 @@ function App() {
     } finally { setLoading(false); }
   }
 
+  
+  function downloadReport() {
+    if (!result) return;
+
+    const report = JSON.stringify(result, null, 2);
+    const blob = new Blob([report], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `promptguard-report-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+
   const status = result?.status;
   return <div className="app-shell">
     <header className="topbar"><div className="brand"><div className="brand-icon"><ShieldCheck size={22}/></div><div><div className="brand-name">PROMPTGUARD <span>DSL</span></div><div className="brand-sub">AI SECURITY TEST PLAYGROUND</div></div></div><div className="version">PROTOTYPE <b>v0.1.0</b></div></header>
@@ -48,8 +66,56 @@ function App() {
           {!result && !apiError && <div className="empty-state"><div className="empty-icon"><Terminal size={27}/></div><h3>Waiting for execution</h3><p>Run the sample program to see a suite summary and individual check results.</p><div className="mini-steps"><div><b>01</b> Parse DSL</div><div><b>02</b> Validate paths</div><div><b>03</b> Execute checks</div></div></div>}
           {apiError && <div className="error-state"><XCircle size={24}/><h3>Backend unavailable</h3><p>{apiError}</p></div>}
           {result && <div className="result-content"><div className={`summary ${status==='PASS'?'summary-pass':status==='FAIL'?'summary-fail':'summary-error'}`}><div className="summary-icon">{status==='PASS'?<CheckCircle2 size={23}/>:<XCircle size={23}/>}</div><div><div className="summary-label">SUITE STATUS</div><div className="summary-status">{status}</div><div className="summary-name">{result.suite || 'Program validation'}</div></div></div>
+          
+<div className="report-toolbar">
+  <div className="report-metric">
+    <span>Total checks</span>
+    <strong>{result.summary?.total_checks ?? result.checks?.length ?? 0}</strong>
+  </div>
+  <div className="report-metric">
+    <span>Passed</span>
+    <strong>{result.summary?.passed ?? result.checks?.filter(c => c.status === 'PASS').length ?? 0}</strong>
+  </div>
+  <div className="report-metric">
+    <span>Failed</span>
+    <strong>{result.summary?.failed ?? result.checks?.filter(c => c.status === 'FAIL').length ?? 0}</strong>
+  </div>
+  <button className="download-button" onClick={downloadReport}>
+    Download JSON report
+  </button>
+</div>
+
+
             {result.error && <div className="error-message"><b>Program error</b><p>{result.error}</p></div>}
-            {result.checks?.length>0 && <><div className="checks-heading">CHECKS <span>{result.checks.length} executed</span></div>{result.checks.map((check,i)=><div className="check-card" key={check.check}><div className={`check-icon ${check.status==='PASS'?'good':'bad'}`}>{check.status==='PASS'?<CheckCircle2 size={17}/>:<XCircle size={17}/>}</div><div className="check-body"><div className="check-name">{check.check}</div><p>{check.message}</p><div className="limitation">NOTE · {check.limitation}</div></div><span className={`status-pill ${check.status==='PASS'?'pill-pass':'pill-fail'}`}>{check.status}</span></div>)}</>}
+            {result.checks?.length>0 && <><div className="checks-heading">CHECKS <span>{result.checks.length} executed</span></div>{result.checks.map((check,i)=><div className="check-card" key={check.check}><div className={`check-icon ${check.status==='PASS'?'good':'bad'}`}>{check.status==='PASS'?<CheckCircle2 size={17}/>:<XCircle size={17}/>}</div><div className="check-body"><div className="check-name">{check.check}</div><p>{check.message}</p><div className="limitation">NOTE · {check.limitation}</div>
+            
+{check.evidence && (
+  <details className="evidence-panel">
+    <summary>View evidence</summary>
+    <div className="evidence-content">
+      <div><b>Method:</b> {check.evidence.method}</div>
+      <div><b>Fixture:</b> {check.evidence.fixture}</div>
+      <div><b>Observation:</b> {check.evidence.observation}</div>
+      <div><b>Markers checked:</b></div>
+      <ul>
+        {(check.evidence.markers_checked || []).map(marker => (
+          <li key={marker}><code>{marker}</code></li>
+        ))}
+      </ul>
+      <div><b>Markers found:</b></div>
+      {check.evidence.markers_found?.length ? (
+        <ul>
+          {check.evidence.markers_found.map(marker => (
+            <li key={marker}><code>{marker}</code></li>
+          ))}
+        </ul>
+      ) : (
+        <p>None of the configured markers matched.</p>
+      )}
+    </div>
+  </details>
+)}
+</div><span className={`status-pill ${check.status==='PASS'?'pill-pass':'pill-fail'}`}>{check.status}</span></div>)}</>}
             {result.notice && <div className="notice">ⓘ {result.notice}</div>}
           </div>}
         </section>
