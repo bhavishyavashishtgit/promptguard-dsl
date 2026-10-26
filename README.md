@@ -1,61 +1,31 @@
-# PromptGuard DSL v0.1
+# PromptGuard DSL
 
-A beginner-friendly prototype for defining repeatable AI-security fixture checks in a small domain-specific language. It uses synthetic local files and **does not call an AI model**.
+**A lightweight domain-specific language for reproducible AI-security fixture testing.**
+
+PromptGuard DSL is an educational prototype that lets developers define simple security checks in a readable, structured format and run them through a web playground. It produces structured JSON reports containing test results, evidence, and limitations.
+
+## Why PromptGuard DSL?
+
+AI-security testing can be difficult to document consistently. PromptGuard DSL explores a simple approach: express test expectations in a small language, run them against local test fixtures, and generate evidence that is easier to review and reproduce.
 
 ## Features
-- Small parser for `suite`, `input`, `output`, and `expect` statements
-- Two deterministic fixture checks: `instruction_conflict` and `no_test_secret_leak`
-- FastAPI API (`GET /api/health`, `POST /api/run`)
-- React/Vite web playground with safe/failing sample programs and result explanations
-- Unit tests for passing/failing fixtures, invalid rules, and path traversal
 
-## Requirements
-- Python 3.10+
-- Node.js 18+ (Node 20+ recommended)
+- **Custom DSL:** Write test suites using readable instructions such as `input`, `output`, and `expect`.
+- **Web playground:** Run test suites through a React-based interface.
+- **Python API:** Execute suites through a FastAPI backend.
+- **Structured reports:** View pass/fail results, check summaries, evidence, and limitations.
+- **JSON export:** Download a test report for documentation and review.
+- **Safe test fixtures:** Demonstrate instruction-conflict and test-marker checks using synthetic examples.
+- **Transparent limitations:** Reports explain that results apply only to the configured fixtures and implemented checks.
 
-## Run locally
+## Tech Stack
 
-### 1. Start the API
-Open a terminal in the project root:
-
-```bash
-cd backend
-python -m venv .venv
-```
-
-Windows PowerShell:
-```powershell
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-macOS/Linux:
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-API docs: http://127.0.0.1:8000/docs
-
-### 2. Start the web interface
-In a second terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open the local URL Vite prints (usually http://localhost:5173).
-
-### 3. Run tests
-From the `backend` directory with its virtual environment active:
-
-```bash
-pytest -q
-```
+- Python
+- FastAPI
+- React
+- Vite
+- JavaScript
+- Pytest
 
 ## Example DSL
 
@@ -69,23 +39,61 @@ suite "Document Safety" {
 }
 ```
 
-Paths are relative to `samples/`. The interpreter rejects paths outside that directory and only supports explicitly allowlisted check names. It does not use `eval` or execute user-provided Python.
+## How It Works
 
-## Current limitations (important)
-- `instruction_conflict` searches for a few fixed test markers in the output; it is not general prompt-injection detection.
-- `no_test_secret_leak` only checks for the synthetic marker `PG_TEST_SECRET_4821`; it is not a general DLP or secret-scanning system.
-- Fixtures are static examples, not outputs from a real model. No LLM integration, authentication, persistence, or deployment hardening is included.
-- This is an educational prototype; do not use it as a production security scanner.
+1. Write a test suite using the PromptGuard DSL syntax.
+2. The backend parses the suite and evaluates its configured checks against the test fixtures.
+3. The interpreter produces a structured result.
+4. The playground displays the status and evidence.
+5. Export the report as JSON for further review.
 
-## DSL grammar (informal)
+## Run Locally
 
-```text
-suite "NAME" {
-    input "RELATIVE_SAMPLE_PATH"
-    output "RELATIVE_SAMPLE_PATH"
-    expect instruction_conflict
-    expect no_test_secret_leak
-}
+### 1. Start the backend
+
+Activate your Python virtual environment, then run:
+
+```powershell
+cd backend
+python -m uvicorn main:app --reload
 ```
 
-Statements may appear in any order after the suite header, but exactly one `input`, one `output`, and at least one supported `expect` are required. `#` starts a comment line.
+The API should be available at `http://127.0.0.1:8000`.
+
+Interactive API documentation: `http://127.0.0.1:8000/docs`
+
+### 2. Start the frontend
+
+Open a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the local URL printed by Vite in your browser.
+
+> Run these commands from the correct project folders. If your setup uses different entry points or scripts, update this section to match your working configuration.
+
+## Testing
+
+Run the backend tests from the backend directory with your virtual environment activated:
+
+```powershell
+python -m pytest -v
+```
+
+## Scope and Limitations
+
+PromptGuard DSL is an educational, fixture-based prototype. Its results describe only the configured test fixtures and implemented checks. A passing result does **not** prove that an AI model, application, or deployment is secure, and this project does not replace comprehensive security testing.
+
+## Project Status
+
+The core prototype includes a DSL interpreter, a FastAPI endpoint, a web playground, and structured test reports. Further work can focus on broader test coverage, improved diagnostics, documentation, and deployment.
+
+## Author
+
+**Bhavishya**
+
+Built as a project exploring readable security testing, reproducible evidence, and AI-security concepts.
