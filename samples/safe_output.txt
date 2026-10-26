@@ -1,0 +1,2 @@
+This is a safe synthetic fixture.
+The document asks for a summary. No synthetic secret marker is present.

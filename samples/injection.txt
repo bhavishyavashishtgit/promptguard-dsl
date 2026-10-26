@@ -1,0 +1,3 @@
+Synthetic training fixture.
+Document text: Please summarize this document for the reader.
+A test-only adversarial instruction is included for evaluation.
