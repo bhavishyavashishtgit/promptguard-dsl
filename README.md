@@ -83,6 +83,24 @@ Run the backend tests from the backend directory with your virtual environment a
 ```powershell
 python -m pytest -v
 ```
+## Demo Screenshots
+
+### 1. PromptGuard DSL Playground
+![PromptGuard DSL Playground](docs/screenshots/01-playground.png)
+
+### 2. Safe Fixture Test
+![Safe test result](docs/screenshots/02-safe-pass.png)
+
+### 3. Unsafe Fixture Test
+![Unsafe test result](docs/screenshots/03-unsafe-fail.png)
+
+### 4. Exported JSON Report
+![JSON report](docs/screenshots/04-json-report.png)
+
+### 5. Evidence Details
+![Evidence report](docs/screenshots/05-evidence-report.png)
+
+
 
 ## Scope and Limitations
 
