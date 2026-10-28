@@ -12,6 +12,57 @@ const safeProgram = `suite "Document Safety" {
 }`;
 const unsafeProgram = safeProgram.replace('"safe_output.txt"', '"unsafe_output.txt"');
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
+function makeDemoResult(isUnsafe) {
+  const checks = [
+    {
+      check: 'instruction_conflict',
+      status: isUnsafe ? 'FAIL' : 'PASS',
+      message: isUnsafe
+        ? 'Illustrative demo: the failing sample is selected.'
+        : 'Illustrative demo: the safe sample is selected.',
+      limitation: 'Simulated result; the backend did not execute this check.',
+      evidence: {
+        method: 'Static UI demonstration',
+        fixture: 'Illustrative sample only',
+        observation: isUnsafe
+          ? 'The failing example is shown for demonstration.'
+          : 'The safe example is shown for demonstration.',
+        markers_checked: ['DEMO_PLACEHOLDER'],
+        markers_found: [],
+      },
+    },
+    {
+      check: 'no_test_secret_leak',
+      status: isUnsafe ? 'FAIL' : 'PASS',
+      message: isUnsafe
+        ? 'Illustrative demo: failure state displayed.'
+        : 'Illustrative demo: pass state displayed.',
+      limitation: 'Simulated result; this is not a real secret-leak test.',
+      evidence: {
+        method: 'Static UI demonstration',
+        fixture: 'Illustrative sample only',
+        observation: 'No real fixture inspection or security analysis was performed.',
+        markers_checked: ['DEMO_PLACEHOLDER'],
+        markers_found: [],
+      },
+    },
+  ];
+
+  return {
+    status: isUnsafe ? 'FAIL' : 'PASS',
+    suite: 'Document Safety (DEMO ONLY)',
+    summary: {
+      total_checks: checks.length,
+      passed: isUnsafe ? 0 : checks.length,
+      failed: isUnsafe ? checks.length : 0,
+    },
+    checks,
+    notice: 'DEMO MODE: these are simulated UI results, not results from the PromptGuard interpreter. No backend or AI model was called.',
+  };
+}
+
 function App() {
   const [source, setSource] = useState(safeProgram);
   const [result, setResult] = useState(null);
@@ -19,17 +70,44 @@ function App() {
   const [apiError, setApiError] = useState('');
 
   async function runProgram() {
-    setLoading(true); setApiError(''); setResult(null);
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/run', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source })
-      });
-      if (!response.ok) throw new Error(`API returned HTTP ${response.status}`);
-      setResult(await response.json());
-    } catch (err) {
-      setApiError('Could not reach the API. Start the FastAPI backend on port 8000, then run again. Details: ' + err.message);
-    } finally { setLoading(false); }
+  setLoading(true);
+  setApiError('');
+  setResult(null);
+
+  try {
+    if (DEMO_MODE) {
+      if (source.trim() === safeProgram.trim()) {
+        setResult(makeDemoResult(false));
+      } else if (source.trim() === unsafeProgram.trim()) {
+        setResult(makeDemoResult(true));
+      } else {
+        setApiError(
+          'Demo mode supports the two built-in samples only. Load a sample to preview the interface. For real parsing and execution, run the FastAPI backend locally.'
+        );
+      }
+      return;
+    }
+
+    const response = await fetch('http://127.0.0.1:8000/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API returned HTTP ${response.status}`);
+    }
+
+    setResult(await response.json());
+  } catch (err) {
+    setApiError(
+      'Could not reach the API. Start the FastAPI backend on port 8000, then run again. Details: ' +
+      err.message
+    );
+  } finally {
+    setLoading(false);
   }
+}
 
   
   function downloadReport() {
@@ -53,14 +131,24 @@ function App() {
   return <div className="app-shell">
     <header className="topbar"><div className="brand"><div className="brand-icon"><ShieldCheck size={22}/></div><div><div className="brand-name">PROMPTGUARD <span>DSL</span></div><div className="brand-sub">AI SECURITY TEST PLAYGROUND</div></div></div><div className="version">PROTOTYPE <b>v0.1.0</b></div></header>
     <main>
-      <section className="hero"><div className="eyebrow"><span className="pulse"/> LOCAL FIXTURE MODE</div><h1>Make security tests<br/><span>readable and repeatable.</span></h1><p>Write a small PromptGuard program, execute it against synthetic fixtures, and inspect each rule's result.</p></section>
+      <section className="hero"><div className="eyebrow">
+  <span className="pulse" />
+  {DEMO_MODE ? 'STATIC DEMO MODE · SIMULATED RESULTS' : 'LOCAL FIXTURE MODE'}
+</div><h1>Make security tests<br/><span>readable and repeatable.</span></h1><p>Write a small PromptGuard program, execute it against synthetic fixtures, and inspect each rule's result.</p></section>
       <div className="workspace">
         <section className="panel editor-panel"><div className="panel-head"><div className="panel-title"><FileCode2 size={17}/> <span>TEST PROGRAM</span></div><span className="file-label">document_safety.pgd</span></div>
           <div className="sample-actions"><button onClick={() => {setSource(safeProgram);setResult(null)}}>Load safe sample</button><button onClick={() => {setSource(unsafeProgram);setResult(null)}}>Load failing sample</button></div>
           <div className="editor-wrap"><div className="line-numbers">{source.split('\n').map((_,i)=><div key={i}>{String(i+1).padStart(2,'0')}</div>)}</div><textarea spellCheck="false" aria-label="PromptGuard DSL source" value={source} onChange={e=>{setSource(e.target.value);setResult(null)}} /></div>
           <div className="editor-foot"><span><span className="dot"/> DSL editor</span><span>{source.length} / 10,000 chars</span></div>
           <button className="run-button" onClick={runProgram} disabled={loading}>{loading?<LoaderCircle className="spin" size={17}/>:<Play size={17} fill="currentColor"/>}{loading?'Running checks…':'Run security checks'} <span>↗</span></button>
-          <div className="safety-note"><AlertTriangle size={16}/><span>Runs only against files inside the local <code>samples/</code> folder. No AI API is called.</span></div>
+          <div className="safety-note">
+  <AlertTriangle size={16} />
+  <span>
+    {DEMO_MODE
+      ? 'Demo only: sample results are simulated. No backend or AI API is called.'
+      : <>Runs against files inside the local <code>samples/</code> folder. No AI API is called.</>}
+  </span>
+</div>
         </section>
         <section className="panel results-panel"><div className="panel-head"><div className="panel-title"><Terminal size={17}/> <span>EXECUTION RESULTS</span></div><span className="live-tag">● READY</span></div>
           {!result && !apiError && <div className="empty-state"><div className="empty-icon"><Terminal size={27}/></div><h3>Waiting for execution</h3><p>Run the sample program to see a suite summary and individual check results.</p><div className="mini-steps"><div><b>01</b> Parse DSL</div><div><b>02</b> Validate paths</div><div><b>03</b> Execute checks</div></div></div>}
