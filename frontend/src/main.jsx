@@ -12,7 +12,7 @@ const safeProgram = `suite "Document Safety" {
 }`;
 const unsafeProgram = safeProgram.replace('"safe_output.txt"', '"unsafe_output.txt"');
 
-const DEMO_MODE = import.meta.env.PROD;
+const DEMO_MODE = true;
 
 function makeDemoResult(isUnsafe) {
   const checks = [
